@@ -238,8 +238,6 @@ grabcataloguesequence="$SCRIPTPATH/grab_catalogue_sequence/grab_catalogue_sequen
 gettaxonomy="$SCRIPTPATH/get_taxonomy/get_taxonomy"
 extractMetagenemark="$SCRIPTPATH/ExtractMetagenemark/ExtractMetagenemark.py"
 
-
-
 # Blast
 blastp="blastp" #"$SCRIPTPATH/ncbi-blast_2.2.30/blastp"
 blastn="blastn" #"$SCRIPTPATH/ncbi-blast_2.2.30/blastn"
@@ -248,13 +246,12 @@ blastn="blastn" #"$SCRIPTPATH/ncbi-blast_2.2.30/blastn"
 bowtie2="bowtie2" #"$SCRIPTPATH/bowtie2-2.2.3/bowtie2"
 bowtie2_build="bowtie2-build" #"$SCRIPTPATH/bowtie2-2.2.3/bowtie2-build"
 # Prodigal
-prodigal=$(which prodigal) #"$SCRIPTPATH/Prodigal-2.6.1/prodigal"
+prodigal="prodigal" #$(which prodigal) #"$SCRIPTPATH/Prodigal-2.6.1/prodigal"
 # Hmmer
 hmmscan="hmmscan" #"$SCRIPTPATH/hmmer_3.1b1/hmmscan"
 # AlienTrimmer
 alientrimmer="AlienTrimmer" #"$SCRIPTPATH/AlienTrimmer_0.4.0/src/AlienTrimmer.jar"
 fastqc="fastqc"
-
 # FetchMG
 fetchmg="$SCRIPTPATH/fetchMG/fetchMG.pl"
 # kraken
@@ -269,7 +266,12 @@ metagenemarkmod="$SCRIPTPATH/MetaGeneMark/mgm/MetaGeneMark_v1.mod"
 fetchmg="$SCRIPTPATH/fetchMG/fetchMG.pl"
 # parallel
 #parallel="$SCRIPTPATH/gnu_parallel/bin/parallel"
-
+# Krona
+krona="ktImportText" #"$SCRIPTPATH/KronaTools-2.6.1/bin/bin/ktImportText"
+# Samtools
+samtools="samtools"
+# Extract samtools data
+extractSamtools="$SCRIPTPATH/ExtractSamtools/ExtractSamtools.py"
 ########
 # Main #
 ########
@@ -593,7 +595,7 @@ then
             mv ${resultDir}/filter_${#filterRef[@]}/un-conc-mate.1 ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq
             mv ${resultDir}/filter_${#filterRef[@]}/un-conc-mate.2 ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq
     fi
-    
+
     # Triming
     if [ "$readTrim" -eq "1" ]
     then
@@ -736,6 +738,7 @@ then
         say "Elapsed time for taxonomic annotation with blastn on nt : $(timer $start_time)"
     fi
 
+
     # Taxonomic annotation of genes with blastn on wgs
     if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_wgs.txt" ] && [ "$wgs" -eq "1" ]
     then
@@ -774,6 +777,67 @@ then
             check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt
         fi
         say "Elapsed time to analyze results on ncbi : $(timer $start_time)"
+    fi
+    
+     # Visualization of taxonomic annotation
+    if [ -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html" ]
+    then
+        say "Visualization of taxonomic annotation on nt with krona"
+        start_time=$(timer)
+        tail -n +2 ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt |cut -f2-9 > ${resultDir}/tmp_annotation
+        while read line
+        do
+            echo -e "1\t$line"
+        done < ${resultDir}/tmp_annotation > ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.txt
+        $krona ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.txt -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html -n "Kingdom" -c
+        rm -f "${resultDir}/tmp_annotation"
+        check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html
+        say "Elapsed time with krona: $(timer $start_time)"
+    fi
+    
+    # Map reads against gene set
+    if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam" ]
+    then
+        say "Map reads against gene set with Bowtie"
+        start_time=$(timer)
+        $bowtie2_build $input_gene $input_gene > ${logDir}/log_bowtie2_build_${SampleName}.txt
+        cat ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq  > ${resultDir}/tmp_fastq
+        $bowtie2 -x $input_gene -U ${resultDir}/tmp_fastq --fast-local -p $NbProc -S ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam > ${logDir}/log_bowtie2_${SampleName}.txt
+        rm -f ${resultDir}/tmp_fastq
+        check_file ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam
+        say "Elapsed time with bowtie: $(timer $start_time)"
+    fi
+    
+    # Get abundance
+    if [ -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam" ] && [ ! -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.bam" ]
+    then
+        say "Check abundance with samtools"
+        start_time=$(timer)
+        $samtools view -bS ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam | samtools sort - ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered
+        $samtools index ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.bam
+        $samtools idxstats ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.bam > ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered_count.txt
+        check_file ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered_count.txt
+        say "Elapsed time with bowtie: $(timer $start_time)"
+    fi
+
+    # Associate abundance and taxonomy
+    if [ -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered_count.txt" ] && [ -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt" ]
+    then
+        say "Associate abundance and taxonomy"
+        start_time=$(timer)
+        python $extractSamtools -i ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered_count.txt -a ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt
+        check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt
+        say "Elapsed time with extractSamtools: $(timer $start_time)"
+    fi
+
+    # Visualization of the abundance and annotation
+    if [ -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.html" ]
+    then
+        say "Visualization of abundance/taxonomic annotation on nt with krona"
+        start_time=$(timer)
+        $krona ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt -n Kingdom -c -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.html
+        check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.html
+        say "Elapsed time with krona: $(timer $start_time)"
     fi
 fi
 
