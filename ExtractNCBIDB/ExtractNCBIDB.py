@@ -77,6 +77,11 @@ def get_arguments():
                         'based on the number of based aligned)')
     parser.add_argument('-fc', dest='filter_coverage', type=int, default=80,
                         help='Filter the coverage (default >= 80 percent).')
+    parser.add_argument('-fi', dest='filter_identity', action='store_true',
+                        default=False,
+                        help='Remove filtering on the identity (default False, '
+                        'superkingdom >= 0.0, phylum >= 65, class >= 75, '
+                        'genus >= 85, specie >=95 percent ).')
     parser.add_argument('-o', '--output_file', dest='output_file', type=str,
                         help='Output file')
     parser.add_argument('-r', dest='results', type=isdir,
@@ -142,7 +147,8 @@ def extract_annotation(blast_result_file, gi_taxid_taxonomy_dict):
     return blast_dict
 
 #filter_identity, 
-def write_annotation(blast_dict, nbest, filter_coverage, output_file, results):
+def write_annotation(blast_dict, nbest, filter_coverage, filter_identity,
+                     output_file, results):
     """Write the result
     """
     split_thres = {0:0, 65:2, 75:3, 85:6, 95:7}
@@ -174,7 +180,7 @@ def write_annotation(blast_dict, nbest, filter_coverage, output_file, results):
                 for hit in short_set:
                     #print(hit)
                     if hit[0]:
-                        if hit[1] >= 95.0:
+                        if hit[1] >= 95.0 or filter_identity:
                             hit[0] = hit[0].split(";")
                         elif hit[1] >= 85.0:
                             hit[0] = hit[0].split(";")[0:7] + ["NA"]
@@ -217,7 +223,7 @@ def main():
     # Write annotation
     #args.filter_identity,
     write_annotation(blast_dict, args.nbest, args.filter_coverage,
-                     args.output_file, args.results)
+                     args.filter_identity, args.output_file, args.results)
 
 
 if __name__ == "__main__":

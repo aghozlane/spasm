@@ -56,7 +56,10 @@ def get_arguments():
     parser.add_argument('-a', dest='annotation_file', type=isfile,
                         required=True,
                         help='Input blast result file from ExtractNCBIDB.')
-    parser.add_argument('-o', '--output_file', dest='output_file', type=str,
+    parser.add_argument('-o', '--output_file', dest='detailed_file', type=str,
+                        default=(os.curdir + os.sep + "abundance_samtools.txt"),
+                        help='Detailed samtools abundance')
+    parser.add_argument('-k', '--output_krona', dest='output_krona', type=str,
                         default=(os.curdir + os.sep + "krona_samtools.txt"),
                         help='Output file for krona')
     return parser.parse_args()
@@ -70,7 +73,10 @@ def parse_sam_count(input_sam):
         with open(input_sam, "rt") as sam:
             sam_reader = csv.reader(sam, delimiter='\t')
             for line in sam_reader:
-                sam_dict[line[0]] = [line[2]]
+                if line[0] == "*":
+                    sam_dict["Unmapped_reads"] = [line[3]]
+                else:
+                    sam_dict[line[0]] = [line[2]]
     except IOError:
         sys.exit("Error cannot open {0}".format(input_sam))
     return sam_dict
@@ -88,21 +94,28 @@ def parse_annotation(sam_dict, annotation_file):
                 if line[0] in sam_dict:
                     sam_dict[line[0]] += line[1:8]
                 else:
-                    # Genes that are no seen on NCBI
-                    sam_dict[line[0]] += ['NS'] * 7
+                    sys.exit("New gene in NCBI annotation and not in sam")
     except IOError:
         sys.exit("Error cannot open {0}".format(annotation_file))
     return sam_dict
 
 
-def write_krona(sam_dict, output_file):
+def write_krona(sam_dict, output_file, detailed=False):
     """Write krona result
     """
     try:
         with open(output_file, "wt") as output:
             output_writer = csv.writer(output, delimiter="\t")
             for key in sam_dict:
-                output_writer.writerow(sam_dict[key])
+                if detailed:
+                    output_writer.writerow([key] + sam_dict[key])
+                else:
+                    # Add ummapped reads count
+                    if key == "Unmapped_reads":
+                        output_writer.writerow(sam_dict[key] +
+                                               ["Unmapped reads"])
+                    else:
+                        output_writer.writerow(sam_dict[key])
     except IOError:
         sys.exit("Error cannot open {0}".format(output_file))
 
@@ -116,7 +129,8 @@ def main():
     args = get_arguments()
     sam_dict = parse_sam_count(args.input_sam)
     sam_dict = parse_annotation(sam_dict, args.annotation_file)
-    write_krona(sam_dict, args.output_file)
+    write_krona(sam_dict, args.output_krona)
+    write_krona(sam_dict, args.detailed_file, True)
 
 if __name__ == "__main__":
     main()

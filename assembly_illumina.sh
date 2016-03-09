@@ -76,8 +76,6 @@ display_help() {
 case 1 - Assembly: $0 -1 <read.fastq> -2 <read.fastq> -s <sample_name> -o </path/to/result/directory/> --assembly
 case 2 - Taxonomic annotation/MTU: $0 -g <gene.fasta> -o </path/to/result/directory/> --tax_annotation
 case 3 - Functional annotation: $0 -p <protein.fasta> -o </path/to/result/directory/> --func_annotation
-case 4 - Quality check : $0 -g <gene.fasta> -o </path/to/result/directory/> --quality_check
-case 5 - Catalogue contribution: $0 -g <gene.fasta> -o </path/to/result/directory/> --contribution
 all : $0 -1 <read.fastq> -2 <read.fastq> -s <sample_name> -o </path/to/result/directory/>
         """
         echo "Use '--help' to print detailed descriptions of command line arguments"
@@ -206,8 +204,6 @@ all=1
 assembly=0
 tax_annotation=0
 func_annotation=0
-quality_check=0
-contribution=0
 readTrim=1
 maxTargetSeqs=10
 evalueTaxAnnot="1e-5"
@@ -272,12 +268,15 @@ krona="ktImportText" #"$SCRIPTPATH/KronaTools-2.6.1/bin/bin/ktImportText"
 samtools="samtools"
 # Extract samtools data
 extractSamtools="$SCRIPTPATH/ExtractSamtools/ExtractSamtools.py"
+# Barrnap
+barrnap="barrnap"
+
 ########
 # Main #
 ########
 
 # Execute getopt on the arguments passed to this program, identified by the special character $@
-PARSED_OPTIONS=$(getopt -n "$0"  -o hs:1:2:o:r:e:n:m:tl:f:p:g:q: --long "help,sample_name:,input1:,input2:,input_protein:,input_gene:,output:,NbProc:,NbMismatchMapping:,noTrim,scaffoldLengthThreshold:,geneLengthThreshold:,filterGene:,SamplePrefix:,metagenemark,spadesAssembly,evalueTaxAnnot:,evalueFuncAnnot:,numberBestannotation:,maxTargetSeqs:,referenceGenome:,wgs,assembly,tax_annotation,func_annotation,quality_check,imomiRefBlast:,imomiIDtoGenome:,markerCOGRef:,markerCOGRefBlast:,eggnogRef:,eggnogRefBlast:,eggnogdescRef:,eggnogmemRef:,eggnogfunccats:,eggnogfunccatRef:,cazyRefHmmer:,famInfoRef:,kegg,keggRef:,keggRefBlast:,koRef:,koGeneKoRef:,koGeneUniprotRef:,koUniprotRef:,koGeneGeneidRef:,koGeneGiRef:,koGenePathwayRef:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0"  -o hs:1:2:o:r:e:n:m:tl:f:p:g:q: --long "help,sample_name:,input1:,input2:,input_protein:,input_gene:,output:,NbProc:,NbMismatchMapping:,noTrim,scaffoldLengthThreshold:,geneLengthThreshold:,filterGene:,SamplePrefix:,metagenemark,spadesAssembly,evalueTaxAnnot:,evalueFuncAnnot:,numberBestannotation:,maxTargetSeqs:,referenceGenome:,wgs,assembly,tax_annotation,func_annotation,imomiRefBlast:,imomiIDtoGenome:,markerCOGRef:,markerCOGRefBlast:,eggnogRef:,eggnogRefBlast:,eggnogdescRef:,eggnogmemRef:,eggnogfunccats:,eggnogfunccatRef:,cazyRefHmmer:,famInfoRef:,kegg,keggRef:,keggRefBlast:,koRef:,koGeneKoRef:,koGeneUniprotRef:,koUniprotRef:,koGeneGeneidRef:,koGeneGiRef:,koGenePathwayRef:"  -- "$@")
 
 #Check arguments
 if [ $# -eq 0 ]
@@ -398,9 +397,6 @@ do
     --func_annotation)
         func_annotation=1
         shift;;
-    --quality_check)
-        quality_check=1
-        shift;;
     --imomiRefBlast)
         imomiRefBlast=$2
         shift 2;;
@@ -492,7 +488,7 @@ do
 done
 
 # Detect activity
-if [ "$assembly" -eq "1" ] || [ "$tax_annotation" -eq "1" ] || [ "$func_annotation" -eq "1" ] || [ "$quality_check" -eq "1" ]
+if [ "$assembly" -eq "1" ] || [ "$tax_annotation" -eq "1" ] || [ "$func_annotation" -eq "1" ]
 then
     all=0
 fi
@@ -608,12 +604,11 @@ then
             $alientrimmer -if ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq -ir ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq -cf 1 -cr 2 -of ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -or ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq -os ${resultDir}/filter_alientrimmer/un-conc-mate_sgl.fastq -c $alienseq  > ${logDir}/log_alientrimmer_${SampleName}.txt  2> ${errorlogDir}/error_log_alientrimmer_${SampleName}.txt
             check_file ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq
             check_log ${errorlogDir}/error_log_alientrimmer_${SampleName}.txt
-            #java -jar src/AlienTrimmer.jar -if test/un-conc-mate.1.fastq -ir test/un-conc-mate.2.fastq  -cf 1 -cr 2
         fi
     else
         filteredSample=$(readlink -f ${resultDir}/filter_${#filterRef[@]}/)
     fi
-    
+
     # Fastqc
     if [ -f "${filteredSample}/un-conc-mate_1.fastq" ] && [ -f "${filteredSample}/un-conc-mate_2.fastq" ] && [ ! -f  "${filteredSample}/un-conc-mate_1_fastqc.html" ] && [ ! -f  "${filteredSample}/un-conc-mate_2_fastqc.html" ]
     then
@@ -637,6 +632,16 @@ then
       check_file ${resultDir}/spades/scaffolds.fasta
       ln -s $(readlink -f "${resultDir}/spades/scaffolds.fasta") $contigs
       say "Elapsed time to assembly with spades : $(timer $start_time)"
+    fi
+    
+    # Predict Ribosomal RNA
+    if [ -f "$contigs" ] && [ ! -f "${resultDir}/${SampleName}_rrna.txt" ]
+    then
+        say "Predict Ribosomal RNA"
+        start_time=$(timer)
+        $barrnap $contigs > ${resultDir}/${SampleName}_rrna.txt 2> ${logDir}/log_barrnap_${SampleName}.txt
+        check_file ${resultDir}/${SampleName}_rrna.txt
+        say "Elapsed time to predict Ribosomal RNA : $(timer $start_time)"
     fi
 
     # Predict genes
@@ -778,7 +783,7 @@ then
         fi
         say "Elapsed time to analyze results on ncbi : $(timer $start_time)"
     fi
-    
+
      # Visualization of taxonomic annotation
     if [ -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html" ]
     then
@@ -794,7 +799,7 @@ then
         check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html
         say "Elapsed time with krona: $(timer $start_time)"
     fi
-    
+
     # Map reads against gene set
     if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam" ]
     then
@@ -802,12 +807,13 @@ then
         start_time=$(timer)
         $bowtie2_build $input_gene $input_gene > ${logDir}/log_bowtie2_build_${SampleName}.txt
         cat ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq  > ${resultDir}/tmp_fastq
-        $bowtie2 -x $input_gene -U ${resultDir}/tmp_fastq --fast-local -p $NbProc -S ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam > ${logDir}/log_bowtie2_${SampleName}.txt
+        $bowtie2 -x $input_gene -U ${resultDir}/tmp_fastq --fast-local -p $NbProc -S ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam > ${logDir}/log_bowtie2_${SampleName}.txt 2>&1
+        check_file ${resultDir}/filter_${essai}/un-conc-mate.1
         rm -f ${resultDir}/tmp_fastq
         check_file ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam
         say "Elapsed time with bowtie: $(timer $start_time)"
     fi
-    
+
     # Get abundance
     if [ -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam" ] && [ ! -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.bam" ]
     then
@@ -825,7 +831,7 @@ then
     then
         say "Associate abundance and taxonomy"
         start_time=$(timer)
-        python $extractSamtools -i ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered_count.txt -a ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt
+        python $extractSamtools -i ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered_count.txt -a ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt -k ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance_detailed.txt
         check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt
         say "Elapsed time with extractSamtools: $(timer $start_time)"
     fi
@@ -835,7 +841,7 @@ then
     then
         say "Visualization of abundance/taxonomic annotation on nt with krona"
         start_time=$(timer)
-        $krona ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt -n Kingdom -c -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.html
+        $krona ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.txt -n SuperKingdom -c -o ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.html
         check_file ${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_abundance.html
         say "Elapsed time with krona: $(timer $start_time)"
     fi
