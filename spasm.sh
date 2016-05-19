@@ -28,6 +28,7 @@ do
    input1=$(readlink -e $file)
    input2=$(readlink -e $(echo $file|sed "s:R1:R2:g"))
    echo $samplename
+   mkdir -p $2
    outputdir="$(readlink -e $2)/$samplename"
    mkdir -p $outputdir
    echo """$header
