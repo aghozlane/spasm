@@ -8,7 +8,7 @@ then
         echo "$0 <reads_dir> <output_dir> <nb_cpu> <email> <queue>"
         exit
 fi
-
+SCRIPTPATH=$(dirname "${BASH_SOURCE[0]}")
 header="""#!/bin/bash
 #$ -S /bin/bash
 #$ -M $4
@@ -33,7 +33,7 @@ do
    mkdir -p $outputdir
    echo """$header
 #$ -N "assembly_${samplename}"
-/bin/bash $HOME/assembly_illumina/assembly_illumina.sh  -1 $input1 -2 $input2 -o $outputdir -s $samplename --metagenemark -n $3 &> $outputdir/log_assembly_illumina.txt 
+/bin/bash $SCRIPTPATH/assembly_illumina.sh  -1 $input1 -2 $input2 -o $outputdir -s $samplename --metagenemark -n $3 &> $outputdir/log_assembly_illumina.txt 
    """ >"${PBS_SCRIPT}_${a}.sh"
    PBSID=`qsub ${PBS_SCRIPT}_${a}.sh`
    let "a=a+1"
