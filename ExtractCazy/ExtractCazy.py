@@ -106,6 +106,7 @@ def get_faminfo(faminfo_file):
 def get_hmmer_result(hmmer_result_file, faminfo_desc):
     """Parse hmmer result and set the annotation
     """
+    gene_hit = []
     annotation_result = []
     try:
         with open(hmmer_result_file, "rt") as hmmer_result:
@@ -113,12 +114,14 @@ def get_hmmer_result(hmmer_result_file, faminfo_desc):
                 if line[0] != "#":
                     splited_line = line.split()
                     family = splited_line[0].split(".")[0]
-                    if family in faminfo_desc:
-                        annotation_result += [[splited_line[2], family] +
-                                              faminfo_desc[family]]
-                    else:
-                        annotation_result += [[splited_line[2], family, "NA",
-                                               "NA", "NA", "NA"]]
+                    if splited_line[2] not in gene_hit:
+                        gene_hit.append(splited_line[2])
+                        if family in faminfo_desc:
+                            annotation_result += [[splited_line[2], family] +
+                                                  faminfo_desc[family]]
+                        else:
+                            annotation_result += [[splited_line[2], family, "NA",
+                                                   "NA", "NA", "NA"]]
             assert(len(annotation_result) > 0)
     except IOError:
         sys.exit("Error cannot open {0}".format(hmmer_result_file))

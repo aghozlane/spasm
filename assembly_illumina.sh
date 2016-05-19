@@ -628,7 +628,9 @@ then
       say "Assembly insert with spades"
       start_time=$(timer)
       mkdir ${resultDir}/spades/
-      $spades  -k 21,33,55,77,99,127 --careful -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  -t $NbProc -o ${resultDir}/spades/ > ${logDir}/log_spades_${SampleName}.txt  2> ${errorlogDir}/error_log_spades_${SampleName}.txt
+      # 77,99,127
+      # -k 21,33,55
+      $spades --meta  -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  -t $NbProc -o ${resultDir}/spades/ > ${logDir}/log_spades_${SampleName}.txt  2> ${errorlogDir}/error_log_spades_${SampleName}.txt
       check_file ${resultDir}/spades/scaffolds.fasta
       ln -s $(readlink -f "${resultDir}/spades/scaffolds.fasta") $contigs
       say "Elapsed time to assembly with spades : $(timer $start_time)"
@@ -801,15 +803,15 @@ then
     fi
 
     # Map reads against gene set
-    if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam" ]
+    if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ]
     then
         say "Map reads against gene set with Bowtie"
         start_time=$(timer)
         $bowtie2_build $input_gene $input_gene > ${logDir}/log_bowtie2_build_${SampleName}.txt
-        cat ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq  > ${resultDir}/tmp_fastq
-        $bowtie2 -x $input_gene -U ${resultDir}/tmp_fastq --fast-local -p $NbProc -S ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam > ${logDir}/log_bowtie2_${SampleName}.txt 2>&1
+        #cat ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  > ${resultDir}/tmp_fastq
+        $bowtie2 --fast-local -p $NbProc -x $input_gene -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq -S ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam > ${logDir}/log_bowtie2_${SampleName}.txt 2>&1
         check_file ${resultDir}/filter_${essai}/un-conc-mate.1
-        rm -f ${resultDir}/tmp_fastq
+        #rm -f ${resultDir}/tmp_fastq
         check_file ${resultDir}/${SampleName}_vs_gene_${geneLengthThreshold}_filtered.sam
         say "Elapsed time with bowtie: $(timer $start_time)"
     fi

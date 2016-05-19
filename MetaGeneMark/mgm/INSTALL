@@ -12,9 +12,5 @@ b. Install the key: copy key "gm_key" into users home directory as:
 
 Program is ready for execution.
 
-Perl scripts are configured with default Perl location at "/usr/bin/perl"
-Programs may have prerequisite conditions, like:
-some CPAN modules, shell scripts or common unix utilities.
-
 #================================================
 
