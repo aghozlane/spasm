@@ -651,6 +651,7 @@ then
     then
         say "Predict genes using Metagenemark"
         start_time=$(timer)
+        cp $SCRIPTPATH/.gm_key $HOME/
         $gmhmmp -a -d  -m $metagenemarkmod $contigs  -o ${resultDir}/${SampleName}.metagenemark 2> ${logDir}/log_metagenemark_${SampleName}.txt
         $extractMetagenemark -i ${resultDir}/${SampleName}.metagenemark -a ${resultDir}/${SampleName}_prot.faa -d ${resultDir}/${SampleName}_gene.fna
         check_file ${resultDir}/${SampleName}_gene.fna

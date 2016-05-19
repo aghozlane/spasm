@@ -3,18 +3,17 @@ PBS_SCRIPT=$HOME/assembly_submission
 #.sh
 
 #Check arguments
-if [ $# -ne 3  ]
+if [ $# -ne 5  ]
 then
-        echo "$0 <reads_dir> <output_dir> <nb_cpu>"
+        echo "$0 <reads_dir> <output_dir> <nb_cpu> <email> <queue>"
         exit
 fi
 
 header="""#!/bin/bash
 #$ -S /bin/bash
-#$ -M amine.ghozlane@pasteur.fr
+#$ -M $4
 #$ -m bea
-#$ -q hubbioit
-##$ -q test
+#$ -q $5
 #$ -pe thread $3
 #$ -l mem_total=50G
 ### LIBRARY
@@ -33,7 +32,7 @@ do
    mkdir -p $outputdir
    echo """$header
 #$ -N "assembly_${samplename}"
-/bin/bash $HOME/assembly_illumina/assembly_illumina.sh  -1 $input1 -2 $input2 -o $outputdir -s $samplename --metagenemark --assembly -n $3 --tax_annotation &> $outputdir/log_assembly_illumina.txt 
+/bin/bash $HOME/assembly_illumina/assembly_illumina.sh  -1 $input1 -2 $input2 -o $outputdir -s $samplename --metagenemark -n $3 &> $outputdir/log_assembly_illumina.txt 
    """ >"${PBS_SCRIPT}_${a}.sh"
    PBSID=`qsub ${PBS_SCRIPT}_${a}.sh`
    let "a=a+1"
