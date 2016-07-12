@@ -32,7 +32,7 @@ do
    outputdir="$(readlink -e $2)/$samplename"
    mkdir -p $outputdir
    echo """$header
-#$ -N "assembly_${samplename}"
+#$ -N \"assembly_${samplename}\"
 /bin/bash $SCRIPTPATH/assembly_illumina.sh  -1 $input1 -2 $input2 -o $outputdir -s $samplename --metagenemark --assembly -n $3 --tax_annotation &> $outputdir/log_assembly_illumina.txt || exit 1
 
 exit 0

@@ -20,7 +20,7 @@ echo """#!/bin/bash
 #$ -q $7
 #$ -pe thread $5
 #$ -l mem_total=50G
-#$ -N "${3}"
+#$ -N \"${3}\"
 ### LIBRARY
 source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge

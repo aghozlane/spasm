@@ -19,7 +19,7 @@ echo """#!/bin/bash
 #SBATCH --qos=$7
 #SBATCH --cpus-per-task= $5
 #SBATCH --mem=50000
-#SBATCH --job-name="assembly_${3}"
+#SBATCH --job-name=\"assembly_${3}\"
 ### LIBRARY
 source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge
