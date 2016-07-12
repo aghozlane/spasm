@@ -1,6 +1,5 @@
 #!/bin/bash
 SLURM_SCRIPT=$HOME/assembly_submission.sh
-#.sh
 
 #Check arguments
 if [ $# -ne 5  ]
@@ -21,6 +20,7 @@ source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge
 module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.3 AlienTrimmer/0.4.0 SPAdes/3.7.0 hmmer/3.1b1 samtools/1.2 KronaTools/2.4 hmmer/3.1b1 barrnap/0.7
 """
+
 for file in $(ls $1/*R1*.fastq)
 do
    samplename=$(basename $file |sed "s:_R1:@:g"|cut -f 1 -d"@")
@@ -36,6 +36,5 @@ do
 exit 0
    """ >$SLURM_SCRIPT
    SLURMID=`sbatch $SLURM_SCRIPT`
-   #exit
    echo "! Soumission SLURM :> JOBID = $SLURMID"
 done

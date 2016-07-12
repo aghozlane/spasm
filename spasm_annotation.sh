@@ -7,6 +7,7 @@ then
         echo "$0 <fna> <faa> <samplename>  <output_dir> <nb_cpu> <email> <queue>"
         exit
 fi
+
 SCRIPTPATH=$(dirname "${BASH_SOURCE[0]}")
 gene=$(readlink -e $1)
 prot=$(readlink -e $2)
@@ -28,6 +29,5 @@ module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.3 AlienTrimmer/0
 exit 0
 """ >"${PBS_SCRIPT}"
 PBSID=`qsub ${PBS_SCRIPT}`
-#exit
 echo "! Soumission PBS :> JOBID = $PBSID"
 
