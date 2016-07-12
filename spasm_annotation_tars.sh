@@ -17,7 +17,7 @@ echo """#!/bin/bash
 #SBATCH --mail-user=$6
 #SBATCH --mail-type=ALL
 #SBATCH --qos=$7
-#SBATCH --cpus-per-task= $5
+#SBATCH --cpus-per-task=$5
 #SBATCH --mem=50000
 #SBATCH --job-name=\"assembly_${3}\"
 ### LIBRARY

@@ -13,9 +13,8 @@ header="""#!/bin/bash
 #SBATCH --mail-user=$4
 #SBATCH --mail-type=ALL
 #SBATCH --qos=$5
-#SBATCH --cpus-per-task= $3
-#SBATCH --mem=50000
-"""
+#SBATCH --cpus-per-task=$3
+#SBATCH --mem=50000"""
 mod="""### LIBRARY
 source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge
