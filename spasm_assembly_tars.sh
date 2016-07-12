@@ -15,7 +15,8 @@ header="""#!/bin/bash
 #SBATCH --qos=$5
 #SBATCH --cpus-per-task= $3
 #SBATCH --mem=50000
-### LIBRARY
+"""
+mod="""### LIBRARY
 source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge
 module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.3 AlienTrimmer/0.4.0 SPAdes/3.7.0 hmmer/3.1b1 samtools/1.2 KronaTools/2.4 hmmer/3.1b1 barrnap/0.7
@@ -32,6 +33,7 @@ do
    mkdir -p $outputdir
    echo """$header
 #SBATCH --job-name=\"assembly_${samplename}\"
+$mod
 /bin/bash $SCRIPTPATH/assembly_illumina.sh  -1 $input1 -2 $input2 -o $outputdir -s $samplename --metagenemark --assembly -n $3 &> $outputdir/log_assembly_illumina.txt || exit 1
 exit 0
    """ >$SLURM_SCRIPT
