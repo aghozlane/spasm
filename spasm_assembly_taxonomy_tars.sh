@@ -18,7 +18,7 @@ header="""#!/bin/bash
 mod="""### LIBRARY
 source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge
-module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.3 AlienTrimmer/0.4.0 SPAdes/3.7.0 hmmer/3.1b1 samtools/1.2 KronaTools/2.4 hmmer/3.1b1 barrnap/0.7
+module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.9 AlienTrimmer/0.4.0 SPAdes/3.9.0 hmmer/3.1b1 samtools/1.2 KronaTools/2.4 hmmer/3.1b1 barrnap/0.7
 """
 
 for file in $(ls $1/*R1*.fastq)
@@ -26,7 +26,11 @@ do
    samplename=$(basename $file |sed "s:_R1:@:g"|cut -f 1 -d"@")
    input1=$(readlink -e $file)
    input2=$(readlink -e $(echo $file|sed "s:R1:R2:g"))
-   echo $samplename
+   if [ "$input1" == "" ]
+   then
+       input1=$(readlink $file)
+       input2=$(readlink $(echo $file|sed "s:R1:R2:g"))
+   fi
    mkdir -p $2
    outputdir="$(readlink -e $2)/$samplename"
    mkdir -p $outputdir

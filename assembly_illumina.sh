@@ -254,7 +254,7 @@ fetchmg="$SCRIPTPATH/fetchMG/fetchMG.pl"
 kraken="$SCRIPTPATH/kraken_bin/kraken"
 krakenreport="$SCRIPTPATH/kraken_bin/kraken-report"
 # spades
-spades="spades.py" #"$SCRIPTPATH/SPAdes-3.5.0-Linux/bin/spades.py"
+spades="spades.py" #"$SCRIPTPATH/SPAdes-3.8.2-Linux/bin/spades.py"
 # Metagenemark
 gmhmmp="$SCRIPTPATH/MetaGeneMark/mgm/gmhmmp"
 metagenemarkmod="$SCRIPTPATH/MetaGeneMark/mgm/MetaGeneMark_v1.mod"
@@ -623,14 +623,12 @@ then
 
     # Spades
     contigs=$(readlink -f "${resultDir}/${SampleName}_scaffolds.fasta")
-    if [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ] && [ ! -d "${resultDir}/spades/" ] && [ ! -f "$contigs" ]
+    if [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ] #&& [ ! -d "${resultDir}/spades/" ] && [ ! -f "$contigs" ]
     then
       say "Assembly insert with spades"
       start_time=$(timer)
       mkdir ${resultDir}/spades/
-      # 77,99,127
-      # -k 21,33,55
-      $spades --meta  -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  -t $NbProc -o ${resultDir}/spades/ > ${logDir}/log_spades_${SampleName}.txt  2> ${errorlogDir}/error_log_spades_${SampleName}.txt
+      $spades --meta -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  -t $NbProc -o ${resultDir}/spades/ > ${logDir}/log_spades_${SampleName}.txt  2> ${errorlogDir}/error_log_spades_${SampleName}.txt
       check_file ${resultDir}/spades/scaffolds.fasta
       ln -s $(readlink -f "${resultDir}/spades/scaffolds.fasta") $contigs
       say "Elapsed time to assembly with spades : $(timer $start_time)"

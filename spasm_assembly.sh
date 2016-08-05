@@ -20,7 +20,7 @@ header="""#!/bin/bash
 mod="""### LIBRARY
 source /local/gensoft2/adm/etc/profile.d/modules.sh
 module purge
-module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.3 AlienTrimmer/0.4.0 SPAdes/3.7.0 hmmer/3.1b1 samtools/1.2 KronaTools/2.4 hmmer/3.1b1 barrnap/0.7
+module add blast+/2.2.31 Python/2.7.8 fastqc/0.11.5 bowtie2/2.2.3 AlienTrimmer/0.4.0 SPAdes/3.9.0 hmmer/3.1b1 samtools/1.2 KronaTools/2.4 hmmer/3.1b1 barrnap/0.7
 """
 
 for file in $(ls $1/*R1*.fastq)
