@@ -732,6 +732,38 @@ then
     fi
 
     # Taxonomic annotation of genes with blastn on nt
+    if [ -f "$contigs" ] && [ ! -f "${resultDir}/${SampleName}_scaffolds_blastn_nt.txt" ]
+    then
+        say "Taxonomic annotation of scaffolds with blastn on nt"
+        start_time=$(timer)
+        $blastn -query $contigs -db $ntBlast -outfmt "6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore" -evalue $evalueTaxAnnot -max_target_seqs $maxTargetSeqs -task megablast -out ${resultDir}/${SampleName}_scaffolds_blastn_nt.txt -num_threads $NbProc 2> ${errorlogDir}/error_log_blastn_nt_${SampleName}_scaffolds.txt
+        check_log ${errorlogDir}/error_log_blastn_nt_${SampleName}_scaffolds.txt
+        check_file ${resultDir}/${SampleName}_scaffolds_blastn_nt.txt
+        say "Elapsed time for taxonomic annotation of scaffolds with blastn on nt : $(timer $start_time)"
+    fi
+    
+
+    if [ -f "${resultDir}/${SampleName}_scaffolds_blastn_nt.txt" ] && [ ! -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt" ] && [ -f "$input_gene" ]
+    then
+        say "Analyze results on ncbi"
+        start_time=$(timer)
+        # ncbi annotation
+        ncbi_annotation="${resultDir}/${SampleName}_scaffolds_blastn_nt.txt"
+        if [ ! -f "${resultDir}/${SampleName}_taxonomy_scaffolds.txt" ]
+        then
+            $gettaxonomy -i $ncbi_annotation -t $gitaxidnucl -n $names -d $nodes -o ${resultDir}/${SampleName}_taxonomy_scaffolds.txt 2> ${errorlogDir}/error_log_gettaxonomy_${SampleName}_scaffolds.txt
+            check_file ${resultDir}/${SampleName}_taxonomy_scaffolds.txt
+            check_log ${errorlogDir}/error_log_gettaxonomy_${SampleName}_scaffolds.txt
+        fi
+        if [ -f "${resultDir}/${SampleName}_taxonomy_scaffolds.txt" ]
+        then
+            python $extractNCBIDB -f $ncbi_annotation -g ${resultDir}/${SampleName}_taxonomy_scaffolds.txt -o ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt -nb $numberBestannotation  -fc 80 2> ${errorlogDir}/error_log_extractncbidb_${SampleName}_scaffolds.txt
+            check_log ${errorlogDir}/error_log_extractncbidb_${SampleName}_scaffolds.txt
+            check_file ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt
+        fi
+        say "Elapsed time to analyze results on ncbi : $(timer $start_time)"
+    fi
+
     if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_nt.txt" ]
     then
         say "Taxonomic annotation with blastn on nt"
