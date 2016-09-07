@@ -614,7 +614,7 @@ then
     then
         say "Quality control with Fastqc"
         start_time=$(timer)
-        $fastqc ${filteredSample}/un-conc-mate_1.fastq ${filteredSample}/un-conc-mate_2.fastq --nogroup -q -t $NbProc 2> ${errorlogDir}/error_log_fastqc_${SampleName}.txt
+        $fastqc ${filteredSample}/un-conc-mate_1.fastq ${filteredSample}/un-conc-mate_2.fastq --nogroup -q 2> ${errorlogDir}/error_log_fastqc_${SampleName}.txt
         check_file ${filteredSample}/un-conc-mate_1_fastqc.html
         check_file ${filteredSample}/un-conc-mate_2_fastqc.html
         check_log ${errorlogDir}/error_log_fastqc_${SampleName}.txt
