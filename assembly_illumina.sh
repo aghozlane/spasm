@@ -623,7 +623,7 @@ then
 
     # Spades
     contigs=$(readlink -f "${resultDir}/${SampleName}_scaffolds.fasta")
-    if [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ] #&& [ ! -d "${resultDir}/spades/" ] && [ ! -f "$contigs" ]
+    if [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ] && [ ! -d "${resultDir}/spades/" ] && [ ! -f "$contigs" ]
     then
       say "Assembly insert with spades"
       start_time=$(timer)
