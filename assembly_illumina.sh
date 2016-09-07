@@ -182,7 +182,7 @@ famInfoRef="$SCRIPTPATH/databases/cazy/cazy_2013_05_11/info/FamInfo.txt"
 # koGeneGiRef="/services/project/biodatabank/kegg/kegg_2014_04_20/info/genes_ncbi-gi.list"
 # koGenePathwayRef="/services/project/biodatabank/kegg/kegg_2014_04_20/info/genes_pathway.list"
 
-gitaxidnucl="$SCRIPTPATH/databases/gi_taxid_nucl.dmp"
+gitaxidnucl="/local/databases/release/taxodb/gi_taxid_nucl.dmp"
 nodes="/local/databases/release/taxodb/nodes.dmp"
 names="/local/databases/release/taxodb/names.dmp"
 ntBlast="/local/databases/fasta/nt"
