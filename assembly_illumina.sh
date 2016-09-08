@@ -741,7 +741,6 @@ then
         check_file ${resultDir}/${SampleName}_scaffolds_blastn_nt.txt
         say "Elapsed time for taxonomic annotation of scaffolds with blastn on nt : $(timer $start_time)"
     fi
-    
 
     if [ -f "${resultDir}/${SampleName}_scaffolds_blastn_nt.txt" ] && [ ! -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt" ] && [ -f "$input_gene" ]
     then
@@ -762,6 +761,67 @@ then
             check_file ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt
         fi
         say "Elapsed time to analyze results on ncbi : $(timer $start_time)"
+    fi
+
+    # Visualization of taxonomic annotation
+    if [ -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html" ]
+    then
+        say "Visualization of taxonomic annotation on nt with krona"
+        start_time=$(timer)
+        tail -n +2 ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt |cut -f2-9 > ${resultDir}/tmp_annotation
+        while read line
+        do
+            echo -e "1\t$line"
+        done < ${resultDir}/tmp_annotation > ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_krona.txt
+        $krona ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_krona.txt -o ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_krona.html -n "Kingdom" -c
+        rm -f "${resultDir}/tmp_annotation"
+        check_file ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_krona.html
+        say "Elapsed time with krona: $(timer $start_time)"
+    fi
+    
+    # Map reads against scaffolds set
+    if [ -f "$contigs" ] && [ ! -f "${resultDir}/${SampleName}_vs_scaffolds.sam" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ]
+    then
+        say "Map reads against scaffolds set with Bowtie"
+        start_time=$(timer)
+        $bowtie2_build $contigs $contigs > ${logDir}/log_bowtie2_build_scaffolds_${SampleName}.txt
+        #cat ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  > ${resultDir}/tmp_fastq
+        $bowtie2 --fast-local -p $NbProc -x $contigs -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq -S ${resultDir}/${SampleName}_vs_scaffolds.sam > ${logDir}/log_bowtie2_scaffolds_${SampleName}.txt 2>&1
+        #rm -f ${resultDir}/tmp_fastq
+        check_file ${resultDir}/${SampleName}_vs_scaffolds.sam
+        say "Elapsed time with bowtie: $(timer $start_time)"
+    fi
+    
+    # Get abundance
+    if [ -f "${resultDir}/${SampleName}_vs_scaffolds.sam" ] && [ ! -f "${resultDir}/${SampleName}_vs_scaffolds.bam" ]
+    then
+        say "Check abundance with samtools"
+        start_time=$(timer)
+        $samtools view -bS ${resultDir}/${SampleName}_vs_scaffolds.sam | samtools sort - ${resultDir}/${SampleName}_vs_scaffolds
+        $samtools index ${resultDir}/${SampleName}_vs_scaffolds.bam
+        $samtools idxstats ${resultDir}/${SampleName}_vs_scaffolds.bam > ${resultDir}/${SampleName}_vs_scaffolds_count.txt
+        check_file ${resultDir}/${SampleName}_vs_scaffolds_count.txt
+        say "Elapsed time with bowtie: $(timer $start_time)"
+    fi
+    
+    # Associate abundance and taxonomy
+    if [ -f "${resultDir}/${SampleName}_vs_scaffolds_count.txt" ] && [ -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.txt" ]
+    then
+        say "Associate abundance and taxonomy"
+        start_time=$(timer)
+        python $extractSamtools -i ${resultDir}/${SampleName}_vs_scaffolds_count.txt -a ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt -k ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.txt -o ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance_detailed.txt
+        check_file ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.txt
+        say "Elapsed time with extractSamtools: $(timer $start_time)"
+    fi
+    
+    # Visualization of the abundance and annotation
+    if [ -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.txt" ] && [ ! -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.html" ]
+    then
+        say "Visualization of abundance/taxonomic annotation on nt with krona"
+        start_time=$(timer)
+        $krona ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.txt -n SuperKingdom -c -o ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.html
+        check_file ${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_abundance.html
+        say "Elapsed time with krona: $(timer $start_time)"
     fi
 
     if [ -f "$input_gene" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_nt.txt" ]
@@ -817,7 +877,7 @@ then
         say "Elapsed time to analyze results on ncbi : $(timer $start_time)"
     fi
 
-     # Visualization of taxonomic annotation
+    # Visualization of taxonomic annotation
     if [ -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html" ]
     then
         say "Visualization of taxonomic annotation on nt with krona"
