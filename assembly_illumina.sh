@@ -764,7 +764,7 @@ then
     fi
 
     # Visualization of taxonomic annotation
-    if [ -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_gene_${geneLengthThreshold}_blastn_ncbi_genome_cov80_krona.html" ]
+    if [ -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80.txt" ] && [ ! -f "${resultDir}/${SampleName}_scaffolds_blastn_ncbi_genome_cov80_krona.html" ]
     then
         say "Visualization of taxonomic annotation on nt with krona"
         start_time=$(timer)
