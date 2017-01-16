@@ -190,6 +190,7 @@ wgsBlast="/local/databases/fasta/genbank_wgsnuc"
 
 minikrakendb="$SCRIPTPATH/databases/MiniKraken_DB/minikraken_20141208"
 
+
 #######################
 # Assembly Parameters #
 #######################
@@ -233,6 +234,13 @@ extractNCBIDB="$SCRIPTPATH/ExtractNCBIDB/ExtractNCBIDB.py"
 grabcataloguesequence="$SCRIPTPATH/grab_catalogue_sequence/grab_catalogue_sequence.py"
 gettaxonomy="$SCRIPTPATH/get_taxonomy/get_taxonomy"
 extractMetagenemark="$SCRIPTPATH/ExtractMetagenemark/ExtractMetagenemark.py"
+
+#khmer
+interleave_reads="interleave-reads.py"
+normalize_by_median="normalize-by-median.py"
+filter_abund="filter-abund.py"
+extract_paired_reads="extract-paired-reads.py"
+split_paired_reads="split-paired-reads.py"
 
 # Blast
 blastp="blastp" #"$SCRIPTPATH/ncbi-blast_2.2.30/blastp"
@@ -509,9 +517,11 @@ then
     fi
     filename=$(basename "$input1")
     extension=".${filename##*.}"
-    if [ "$extension" != ".fastq" ] && [ "$extension" != ".fq" ]
+
+
+    if [ "$extension" != ".fastq" ] && [ "$extension" != ".fq" ] && [ "$extension" != ".gz"]
     then
-        error "The input file should be a fastq file."
+        error "The input file should be a fastq file or fastq.gz."
         display_help
     fi
     SamplePath1=$(dirname $input1)
@@ -593,20 +603,37 @@ then
     fi
 
     # Triming
-    if [ "$readTrim" -eq "1" ]
+    filteredSample=$(readlink -f ${resultDir}/filter_alientrimmer/)
+    if [ ! -d "${resultDir}/filter_alientrimmer" ]
     then
-        filteredSample=$(readlink -f ${resultDir}/filter_alientrimmer/)
-        if [ ! -d ${resultDir}/filter_alientrimmer ]
+        say "Triming reads with alientrimmer"
+        start_time=$(timer)
+        mkdir -p ${resultDir}/filter_alientrimmer
+        $alientrimmer -if ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq -ir ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq -cf 1 -cr 2 -of ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -or ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq -os ${resultDir}/filter_alientrimmer/un-conc-mate_sgl.fastq -c $alienseq -l 45  > ${logDir}/log_alientrimmer_${SampleName}.txt  2> ${errorlogDir}/error_log_alientrimmer_${SampleName}.txt
+        check_file ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq
+        check_log ${errorlogDir}/error_log_alientrimmer_${SampleName}.txt
+         say "Elapsed time to trim : $(timer $start_time)"
+    fi
+
+    # khmer
+    if [ -f "${filteredSample}/un-conc-mate_1.fastq" ] && [ -f "${filteredSample}/un-conc-mate_2.fastq" ]
+    then
+        filteredSample=$(readlink -f ${resultDir}/filter_khmer/)
+        if [ ! -d "${resultDir}/filter_khmer" ]
         then
-            say "Triming reads with alientrimmer"
+            say "Normalisation and khmer trimming"                                    
             start_time=$(timer)
-            mkdir -p ${resultDir}/filter_alientrimmer
-            $alientrimmer -if ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_1.fastq -ir ${resultDir}/filter_${#filterRef[@]}/un-conc-mate_2.fastq -cf 1 -cr 2 -of ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -or ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq -os ${resultDir}/filter_alientrimmer/un-conc-mate_sgl.fastq -c $alienseq  > ${logDir}/log_alientrimmer_${SampleName}.txt  2> ${errorlogDir}/error_log_alientrimmer_${SampleName}.txt
-            check_file ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq
-            check_log ${errorlogDir}/error_log_alientrimmer_${SampleName}.txt
+            mkdir -p ${filteredSample}
+            $interleave_reads ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq   --output ${filteredSample}/interleaved.pe
+            $normalize_by_median -p -k 20 -C 20 -N 4 -x 3e9 --savegraph ${filteredSample}/graph.ct  ${filteredSample}/interleaved.pe --output ${filteredSample}/output.pe.keep
+            $filter_abund -V  ${filteredSample}/graph.ct ${filteredSample}/output.pe.keep  --output ${filteredSample}/output.pe.filter -T $NbProc
+            $extract_paired_reads ${filteredSample}/output.pe.filter --output-paired ${filteredSample}/output.dn.pe  --output-single ${filteredSample}/output.dn.se
+            $split_paired_reads ${filteredSample}/output.dn.pe   -1 ${filteredSample}/un-conc-mate_1.fastq -2 ${filteredSample}/un-conc-mate_2.fastq
+            check_file ${filteredSample}/un-conc-mate_1.fastq
+            check_file ${filteredSample}/un-conc-mate_2.fastq
+            rm ${filteredSample}/*.pe* ${filteredSample}/graph.ct ${filteredSample}/*.se
+            say "Elapsed time with khmer: $(timer $start_time)"
         fi
-    else
-        filteredSample=$(readlink -f ${resultDir}/filter_${#filterRef[@]}/)
     fi
 
     # Fastqc
@@ -623,12 +650,12 @@ then
 
     # Spades
     contigs=$(readlink -f "${resultDir}/${SampleName}_scaffolds.fasta")
-    if [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq" ] && [ -f "${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq" ] && [ ! -d "${resultDir}/spades/" ] && [ ! -f "$contigs" ]
+    if [ -f "${filteredSample}/un-conc-mate_1.fastq" ] && [ -f "${filteredSample}/un-conc-mate_2.fastq" ] && [ ! -d "${resultDir}/spades/" ] && [ ! -f "$contigs" ]
     then
       say "Assembly insert with spades"
       start_time=$(timer)
       mkdir ${resultDir}/spades/
-      $spades --meta -1 ${resultDir}/filter_alientrimmer/un-conc-mate_1.fastq -2 ${resultDir}/filter_alientrimmer/un-conc-mate_2.fastq  -t $NbProc -o ${resultDir}/spades/ > ${logDir}/log_spades_${SampleName}.txt  2> ${errorlogDir}/error_log_spades_${SampleName}.txt
+      $spades --meta -1 ${filteredSample}/un-conc-mate_1.fastq -2 ${filteredSample}/un-conc-mate_2.fastq  -t $NbProc -o ${resultDir}/spades/ > ${logDir}/log_spades_${SampleName}.txt  2> ${errorlogDir}/error_log_spades_${SampleName}.txt
       check_file ${resultDir}/spades/scaffolds.fasta
       ln -s $(readlink -f "${resultDir}/spades/scaffolds.fasta") $contigs
       say "Elapsed time to assembly with spades : $(timer $start_time)"
